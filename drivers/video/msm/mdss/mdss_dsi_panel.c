@@ -316,7 +316,7 @@ static struct dsi_cmd_desc backlight_cmd_gvo_lock_unlock[] = {
 };
 #endif
 static struct dsi_cmd_desc backlight_cmd = {
-	{DTYPE_DCS_WRITE1, 1, 0, 0, 1, sizeof(led_pwm1)},
+	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(led_pwm1)},
 	led_pwm1
 };
 //ZTEMT: added by nubia camera for front camera flash  start
