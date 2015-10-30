@@ -1045,6 +1045,21 @@ static void mdss_dsi_panel_on_hdmi(struct mdss_dsi_ctrl_pdata *ctrl,
 }
 #endif
 
+static void mdss_dsi_panel_forced_tx_mode_set(struct mdss_panel_info *pinfo,
+					bool enable)
+{
+	if (!pinfo->forced_tx_mode_ftr_enabled)
+		return;
+
+	pinfo->forced_tx_mode_state = (enable ?
+				pinfo->forced_tx_mode_ftr_enabled : 0);
+}
+
+u32 mdss_dsi_panel_forced_tx_mode_get(struct mdss_panel_info *pinfo)
+{
+	return pinfo->forced_tx_mode_state;
+}
+
 static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 {
 	struct mdss_dsi_ctrl_pdata *ctrl = NULL;
@@ -1094,6 +1109,8 @@ end:
 #ifdef CONFIG_NUBIA_LCD_DISP_PREFERENCE
 	cabc_panel_state = 1;
 #endif
+	if (pinfo->forced_tx_mode_ftr_enabled)
+		mdss_dsi_panel_forced_tx_mode_set(pinfo, true);
 	pr_debug("%s:-\n", __func__);
 	return ret;
 }
@@ -1194,6 +1211,9 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 		if (ctrl->ndx != DSI_CTRL_LEFT)
 			goto end;
 	}
+
+	if (pinfo->forced_tx_mode_ftr_enabled)
+		mdss_dsi_panel_forced_tx_mode_set(pinfo, false);
 
 	if (ctrl->off_cmds.cmd_cnt)
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->off_cmds, CMD_REQ_COMMIT);
@@ -1343,6 +1363,25 @@ exit_free:
 	return -ENOMEM;
 }
 
+void mdss_dsi_panel_parse_forced_tx_mode(struct device_node *np,
+					struct mdss_panel_info *pinfo)
+{
+	const char *data;
+
+	pinfo->forced_tx_mode_ftr_enabled = 0;
+	pinfo->forced_tx_mode_state = 0;
+	data = of_get_property(np, "qcom,mdss-dsi-force-tx-mode", NULL);
+	if (data) {
+		if (!strcmp(data, "dsi_hs_mode"))
+			pinfo->forced_tx_mode_ftr_enabled = CMD_REQ_HS_MODE;
+		else
+			pinfo->forced_tx_mode_ftr_enabled = CMD_REQ_LP_MODE;
+
+		if (pinfo->cont_splash_enabled)
+			pinfo->forced_tx_mode_state =
+				pinfo->forced_tx_mode_ftr_enabled;
+	}
+}
 
 int mdss_panel_get_dst_fmt(u32 bpp, char mipi_mode, u32 pixel_packing,
 				char *dst_format)
@@ -2294,6 +2333,8 @@ static int mdss_dsi_parse_panel_features(struct device_node *np,
 		of_property_read_bool(np, "qcom,disable-dimming-when-resume");
 	pr_info("[lcd] %s: %d: disable_dimming_when_resume is %d\n",
 		__func__, __LINE__, pinfo->disable_dimming_when_resume);
+
+	mdss_dsi_panel_parse_forced_tx_mode(np, pinfo);
 
 	return 0;
 }
